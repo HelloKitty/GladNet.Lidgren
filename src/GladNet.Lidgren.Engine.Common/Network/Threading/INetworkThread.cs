@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace GladNet.Lidgren.Engine.Common
 {
@@ -11,7 +12,7 @@ namespace GladNet.Lidgren.Engine.Common
 		/// <summary>
 		/// Ordered collection of incoming messages.
 		/// </summary>
-		IThreadedQueue<LidgrenMessageContext> IncomingMessageQueue { get; }
+		IThreadedQueue<LidgrenMessageContext, AutoResetEvent> IncomingMessageQueue { get; }
 
 		/// <summary>
 		/// Indicates if the network thread is running.

@@ -6,12 +6,12 @@ using System.Threading;
 
 namespace GladNet.Lidgren.Engine.Common
 {
-	public class SemaphoreQueue<T> : Queue<T>, IThreadedQueue<T, Semaphore>
+	public class AutoResetQueue<T> : Queue<T>, IThreadedQueue<T, AutoResetEvent>
 	{
 		/// <summary>
 		/// A manual-managed semaphore for the <see cref="Queue{T}"/>.
 		/// </summary>
-		public Semaphore QueueSemaphore { get; } = new Semaphore(0, int.MaxValue);
+		public AutoResetEvent QueueSemaphore { get; } = new AutoResetEvent(false);
 
 		/// <summary>
 		/// A read/write optimized syncronization queue.
@@ -21,48 +21,26 @@ namespace GladNet.Lidgren.Engine.Common
 		WaitHandle IThreadedQueue<T>.QueueSemaphore { get { return QueueSemaphore; } }
 
 		/// <summary>
-		/// Creates a default <see cref="WaitableQueue{T}"/> with a <see cref="EventWaitHandle"/>.
+		/// Creates a default <see cref="Queue{T}"/> with a <see cref="AutoResetEvent"/>.
 		/// </summary>
-		public SemaphoreQueue()
+		public AutoResetQueue()
 		{
 
 		}
 
 		public IEnumerable<T> DequeueAll()
 		{
-#if DEBUG || DEBUGBUILD
-			if (!syncRoot.IsWriteLockHeld && !syncRoot.IsReadLockHeld)
-				throw new InvalidOperationException($"Cannot {nameof(DequeueAll)} objects in {nameof(WaitableQueue<T>)} without locking with {nameof(syncRoot)}.");
-#endif
-
 			IEnumerable<T> dequeued = this.ToList();
 			this.Clear();
 			return dequeued;
 		}
 
-		//We do debugging to check for proper syncronization
-#if DEBUG || DEBUGBUILD
-		public new void Enqueue(T item)
+		bool IThreadedQueue<T>.Enqueue(T obj)
 		{
-			//We could get false positives, in the opposite sense, but it's better than no debug protection
-			if (!syncRoot.IsWriteLockHeld && !syncRoot.IsReadLockHeld)
-				throw new InvalidOperationException($"Cannot {nameof(Enqueue)} objects in {nameof(WaitableQueue<T>)} without locking with {nameof(syncRoot)}.");
+			this.Enqueue(obj);
 
-			base.Enqueue(item);
+			return true;
 		}
-#endif
-
-		//We do debugging to check for proper syncronization
-#if DEBUG || DEBUGBUILD
-		public new T Dequeue()
-		{
-			//We could get false positives, in the opposite sense, but it's better than no debug protection
-			if (!syncRoot.IsWriteLockHeld && !syncRoot.IsReadLockHeld)
-				throw new InvalidOperationException($"Cannot {nameof(Dequeue)} objects in {nameof(WaitableQueue<T>)} without locking with {nameof(syncRoot)}.");
-
-			return base.Dequeue();
-		}
-#endif
 
 		#region IDisposable Support
 		private bool disposedValue = false; // To detect redundant calls
@@ -84,7 +62,7 @@ namespace GladNet.Lidgren.Engine.Common
 			}
 		}
 
-		 ~SemaphoreQueue()
+		 ~AutoResetQueue()
 		{
 		   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
 		   Dispose(false);

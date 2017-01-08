@@ -20,6 +20,8 @@ namespace GladNet.Lidgren.Engine.Common
 
 		T Dequeue();
 
+		bool Enqueue(T obj);
+
 		IEnumerable<T> DequeueAll();
 	}
 }

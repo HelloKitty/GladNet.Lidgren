@@ -86,98 +86,17 @@ namespace GladNet.Lidgren.Client.Unity
 
 		public void Disconnect()
 		{
-				//Clean up thread
-				managedNetworkThread.Stop();
-				managedNetworkThread.Dispose();
-				managedNetworkThread = null;
 
-				//Reinit
-				internalLidgrenNetworkClient = new NetClient(new NetPeerConfiguration(connectionInfo.ApplicationIdentifier) { AcceptIncomingConnections = false });
-				//NetworkSendService = new LidgrenClientNetworkMessageRouterService(new LidgrenNetworkMessageFactory(), internalLidgrenNetworkClient, serializer);
 		}
 
 		public bool Connect()
 		{
-			if (internalLidgrenNetworkClient.Status != NetPeerStatus.NotRunning)
-			{
-				//call disconnection to cleanup the current running session
-				Disconnect();
-			}
 
-			//Must call start first
-			internalLidgrenNetworkClient.Start();
-
-			NetConnection connection = internalLidgrenNetworkClient.Connect(connectionInfo.ServerIp, connectionInfo.RemotePort);
-
-			if (connection == null)
-				throw new InvalidOperationException($"Could not connect and create a {nameof(NetConnection)}.");
-
-			//Now that we have the netconnection we can initialize the sendservice
-			NetworkSendService = new LidgrenClientNetworkMessageRouterService(new LidgrenNetworkMessageFactory(), connection, serializer);
-
-			if (connection == null)
-				return false;
-
-			//Create a new managed thread
-			managedNetworkThread = new ManagedLidgrenNetworkThread(serializer, new LidgrenClientMessageContextFactory(deserializer), new ClientSendServiceSelectionStrategy(this.NetworkSendService), e => Debug.LogError(e.Message + "StackTrace: " + e.StackTrace));
-
-			//Start the thread and give the peer the context
-			managedNetworkThread.Start(internalLidgrenNetworkClient);
-
-			return true;
 		}
 
 		public void Poll()
 		{
-			if (managedNetworkThread == null)
-				throw new InvalidOperationException("No network thread is running.");
 
-			if (internalLidgrenNetworkClient.Status == NetPeerStatus.NotRunning)
-				throw new InvalidOperationException("The client is not running.");
-
-
-			IEnumerable<LidgrenMessageContext> messages = null;
-
-			//TODO: Maybe read to check count first.
-			//Lock only as short as we need to.
-			managedNetworkThread.IncomingMessageQueue.syncRoot.EnterWriteLock();
-			try
-			{
-				messages = managedNetworkThread.IncomingMessageQueue.DequeueAll();
-			}
-			finally
-			{
-				managedNetworkThread.IncomingMessageQueue.syncRoot.ExitWriteLock();
-			}
-
-			if (messages == null || messages.Count() == 0)
-				return;
-
-			HandleMessages(messages);
-		}
-
-		private void HandleMessages(IEnumerable<LidgrenMessageContext> messages)
-		{
-			foreach (LidgrenMessageContext m in messages)
-				if (!m.TryDispatch(publisher))
-					throw new InvalidOperationException($"Unable to dispatch {m.GetType().Name}.");
-		}
-
-		protected virtual void OnApplicationQuit()
-		{
-			OnDestroy();
-		}
-
-		protected virtual void OnDestroy()
-		{
-			//Disconnect if connected
-			if (internalLidgrenNetworkClient?.ConnectionStatus == NetConnectionStatus.Connected)
-				internalLidgrenNetworkClient?.Disconnect("");
-
-			managedNetworkThread?.Stop();
-			managedNetworkThread?.Dispose();
-			managedNetworkThread = null;
-			internalLidgrenNetworkClient = null;
 		}
 
 		/// <summary>
